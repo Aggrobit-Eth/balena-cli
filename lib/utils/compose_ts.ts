@@ -43,6 +43,7 @@ import {
 import type { DeviceInfo } from './device/api';
 import { getBalenaSdk, getChalk, stripIndent } from './lazy';
 import Logger = require('./logger');
+import * as yaml from 'js-yaml';
 
 /**
  * Given an array representing the raw `--release-tag` flag of the deploy and
@@ -136,6 +137,7 @@ export async function loadProject(
 	} else {
 		logger.logDebug('Resolving project...');
 		[composeName, composeStr] = await resolveProject(logger, opts.projectPath);
+
 		if (composeName) {
 			if (opts.dockerfilePath) {
 				logger.logWarn(
@@ -148,9 +150,51 @@ export async function loadProject(
 			);
 			composeStr = compose.defaultComposition(undefined, opts.dockerfilePath);
 		}
+
+		// If local push, merge dev compose overlay
+		if (opts.isLocal) {
+			composeStr = await mergeDevComposeOverlay(
+				logger,
+				composeStr,
+				opts.projectPath,
+			);
+		}
 	}
 	logger.logDebug('Creating project...');
 	return createProject(opts.projectPath, composeStr, opts.projectName);
+}
+
+/**
+ * Check for existence of docker-compose dev overlay file
+ * and merge in services definitions.
+ */
+async function mergeDevComposeOverlay(
+	logger: Logger,
+	composeStr: string,
+	projectRoot: string,
+) {
+	const devOverlayFilename = 'docker-compose.dev.yml';
+	const devOverlayPath = path.join(projectRoot, devOverlayFilename);
+
+	if (await exists(devOverlayPath)) {
+		logger.logInfo(
+			`Docker compose dev overlay detected (${devOverlayFilename}) - merging.`,
+		);
+		try {
+			const compose = yaml.load(composeStr);
+			const devOverlay = yaml.load(await fs.readFile(devOverlayPath, 'utf8'));
+			// We only want to merge the services section
+			compose.services = { ...compose.services, ...devOverlay.services };
+			composeStr = yaml.dump(compose);
+		} catch (err) {
+			logger.logError(
+				`Error merging docker compose dev overlay file "${devOverlayPath}":\n${err}`,
+			);
+			throw err;
+		}
+	}
+
+	return composeStr;
 }
 
 /**
@@ -181,6 +225,7 @@ async function resolveProject(
 	if (!quiet && !composeFileName) {
 		logger.logInfo(`No "docker-compose.yml" file found at "${projectRoot}"`);
 	}
+
 	return [composeFileName, composeFileContents];
 }
 
