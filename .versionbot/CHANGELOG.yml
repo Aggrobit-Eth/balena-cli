@@ -1,4 +1,17 @@
 - commits:
+    - subject: Add support for docker-compose dev overlay
+      hash: 2d64496e6e63f722e874f12f158d1d0381fd3f5e
+      body: ''
+      footer:
+        Change-type: minor
+        change-type: minor
+        Signed-off-by: Scott Lowe <scott@balena.io>
+        signed-off-by: Scott Lowe <scott@balena.io>
+      author: Scott Lowe
+      nested: []
+  version: 12.39.0
+  date: 2021-02-05T12:21:31.883Z
+- commits:
     - subject: 'build/deploy: Update QEMU to speed up emulated builds'
       hash: 9636985ee7648dca6967cf35ddd7bb122cfbc65c
       body: |
